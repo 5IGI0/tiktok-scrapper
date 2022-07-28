@@ -11,7 +11,11 @@ from os import path, utime, getcwd
 from downloader import add_file_from_memory
 from gzip import compress
 
-driver = webdriver.Firefox()
+profile = webdriver.FirefoxProfile()
+profile.set_preference("media.volume_scale", "0.0")
+profile.set_preference("browser.link.open_newwindow", 3)
+
+driver = webdriver.Firefox(firefox_profile=profile)
 driver.get("https://www.tiktok.com/")
 
 with open("cookies.json") as fp:
@@ -19,9 +23,6 @@ with open("cookies.json") as fp:
 		driver.add_cookie(item)
 driver.get("https://www.tiktok.com/following")
 driver.maximize_window()
-
-driver.execute_script("window.open('about:blank','_blank');")
-driver.switch_to.window(driver.window_handles[0])
 
 # on attend que le gars se connecte et va dans ses abonnements
 # (j'arrivais pas à me connecter donc jsp si ça marche dessus)
@@ -33,7 +34,7 @@ olds = []
 user_cache = {}
 
 try:
-	with open("user_cache.json", "r") as fp:
+	with open("user_cache2.json", "r") as fp:
 		user_cache = load(fp)
 except:
 	pass
@@ -54,11 +55,11 @@ def download(url, data):
 
 	mtime = time()
 	try:
-		mtime = path.getmtime(path.join(DOWNLOAD_DIR,data["author_id"]+".tar"))
+		mtime = path.getmtime(path.join(DOWNLOAD_DIR,data["author"]["uniqueId"].encode("utf8").hex()+".tar"))
 	except:
 		pass
 
-	with tarfile.open(name=path.join(DOWNLOAD_DIR,data["author_id"]+".tar"), mode="a") as archive:
+	with tarfile.open(name=path.join(DOWNLOAD_DIR,data["author"]["uniqueId"].encode("utf8").hex()+".tar"), mode="a") as archive:
 		add_file_from_memory(
 			archive, data["video_id"]+".json.gz",
 			compress(dumps(data).encode(), compresslevel=9)
@@ -68,54 +69,55 @@ def download(url, data):
 			response.content
 		)
 
-	utime(path.join(DOWNLOAD_DIR,data["author_id"]+".tar"), times=(mtime,mtime))
+	utime(path.join(DOWNLOAD_DIR,data["author"]["uniqueId"].encode("utf8").hex()+".tar"), times=(mtime,mtime))
 	add_presence(data["video_id"], data["author_id"])
 	print("done.")
 
-thread_container = driver.find_element_by_xpath("/html")
 i = 0
+y = 0
 while True:
-	action = webdriver.ActionChains(driver)
 	elements = driver.find_elements_by_xpath("/html/body/div[2]/div[2]/div[2]/div/div")
+	thread_container = driver.find_element_by_xpath("/html")
 	i += 1
+	y += 1
 	for elem in elements:
+		#driver.execute_script('a = document.getElementsByTagName("video"); for (i = 0; i < a.length; i++) {a[i].volume = 0.0;}')
 		if elem.id not in olds:
 			try:
-				author_link = elem.find_element_by_xpath("./a").get_attribute("href")
+				author_elem =  elem.find_element_by_xpath("./a")
+				author_link = author_elem.get_attribute("href")
 				author = author_link.split("/@")[1].split("?")[0]
-				video_url = elem.find_element_by_xpath("./div[1]/div[2]/div[1]/div[1]/div[1]/div[1]/video").get_attribute("src")
+				video_elem = elem.find_element_by_xpath("./div[1]/div[2]/div[1]/div[1]/div[1]/div[1]/video")
+				video_url = video_elem.get_attribute("src")
+				#driver.execute_script("arguments[0].volume = 0.0;", video_elem)
 
 				#####
 				# je récupère l'invite what's app pour avoir l'id
 				#####
+				action = webdriver.ActionChains(driver)
+				#action.click(elem.find_element_by_xpath("./div[1]/div[2]/div[2]/button[1]"))
 				share = elem.find_element_by_xpath("./div[1]/div[2]/div[2]/button[3]")
 				action.move_to_element(share)
 				action.perform()
-				sleep(0.2)
 				video_id = share.find_element_by_xpath("./div[1]/div[1]/a[3]").get_attribute("href").split("%2Fvideo%2F")[1].split("%3F")[0]
+			
+				#action = webdriver.ActionChains(driver)
+				#action.move_by_offset(-250, 0)
+				#action.perform()
 			except:
 				continue
-
-			thread_container.send_keys(Keys.ARROW_DOWN)
+				
+			print("video id :", video_id)
+			
 			if not is_present(video_id):
-				# on vas dans l'onglet qu'on vient d'ouvrir
 				if not author in user_cache:
-					print(author, "not cached, getting")
-					driver.switch_to.window(driver.window_handles[1])
-					driver.implicitly_wait(1)
-					driver.get(author_link)
-					user_cache[author] = loads(driver.find_element_by_id("SIGI_STATE").get_attribute("innerText"))["UserModule"]["users"][author]
-					driver.switch_to.window(driver.window_handles[0])
-					with open("user_cache.json", "w") as fp:
-						dump(user_cache, fp)
+					author_data = {"id": None, "uniqueId": author}
 				else:
-					print(author, "cached!")
-				author_data = user_cache[author]
+					author_data = user_cache[author]
 				author_id = author_data["id"]
 				
 				print("author id:", author_id)
 				print("video url:", video_url)
-				print("video id :", video_id)
 
 				download(video_url, {
 					"author_id": author_id,
@@ -125,7 +127,14 @@ while True:
 			else:
 				print("already downloaded, skip")
 			i = 0
+			y += 1
+			thread_container.send_keys(Keys.ARROW_DOWN)
 			olds.append(elem.id)
-			sleep(0.1)
-	if i >= 5:
+			sleep(1)
+		
+	if i >= 5 or y >= 50:
+		driver.refresh()
 		i = 0
+		y = 0
+		olds = []
+	
