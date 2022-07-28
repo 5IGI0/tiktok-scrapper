@@ -30,11 +30,11 @@ def download_tiktok(video_id):
 
 	mtime = time()
 	try:
-		mtime = path.getmtime(DOWNLOAD_DIR+"/"+data["video"]["authorId"]+".tar")
+		mtime = path.getmtime(DOWNLOAD_DIR+"/"+data["video"]["author"].encode("utf8").hex()+".tar")
 	except:
 		pass
 
-	with tarfile.open(name=DOWNLOAD_DIR+"/"+data["video"]["authorId"]+".tar", mode="a") as archive:
+	with tarfile.open(name=DOWNLOAD_DIR+"/"+data["video"]["author"].encode("utf8").hex()+".tar", mode="a") as archive:
 		add_file_from_memory(
 			archive, data["video"]["id"]+".json.gz",
 			compress(json.dumps(data).encode(), compresslevel=9))
@@ -42,9 +42,9 @@ def download_tiktok(video_id):
 			requests.get(data["video"]["video"]["downloadAddr"]).content
 		)
 
-	utime(DOWNLOAD_DIR+"/"+data["video"]["authorId"]+".tar", times=(mtime,mtime))
+	utime(DOWNLOAD_DIR+"/"+(data["video"]["author"].encode("utf8").hex())+".tar", times=(mtime,mtime))
 	
-	add_presence(video_id, data["video"]["authorId"])
+	add_presence(video_id, data["video"]["author"].encode("utf8").hex())
 	print("done.")
 
 def download_tiktoks_profile(user_id):
@@ -52,9 +52,9 @@ def download_tiktoks_profile(user_id):
 
 	data = get_meta_from_profile(user_id)
 
-	numeric_user_id = list(data["users"].values())[0]["id"]
+	numeric_user_id = list(data["users"].values())[0]["uniqueId"].encode("utf8").hex()
 
-	with tarfile.open(name=DOWNLOAD_DIR+"/"+list(data["users"].values())[0]["id"]+".tar", mode="a") as archive:
+	with tarfile.open(name=DOWNLOAD_DIR+"/"+list(data["users"].values())[0]["uniqueId"].encode("utf8").hex()+".tar", mode="a") as archive:
 		for video in data["videos"].values():
 			json_data = json.dumps({
 				"video": video,
@@ -73,7 +73,7 @@ def download_tiktoks_profile(user_id):
 				requests.get(video["video"]["downloadAddr"]).content
 			)
 
-			add_presence(video["id"], list(data["users"].values())[0]["id"])
+			add_presence(video["id"], list(data["users"].values())[0]["uniqueId"].encode("utf8").hex())
 
 	print("done.")
 	utime(DOWNLOAD_DIR+"/"+numeric_user_id+".tar", times=(time(),time()))
