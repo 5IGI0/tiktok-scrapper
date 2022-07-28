@@ -1,4 +1,4 @@
-import selenium
+# import selenium
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
@@ -7,7 +7,7 @@ from json import loads, load, dumps, dump
 from table_manager import is_present, add_presence
 import requests
 import tarfile
-from os import path, utime
+from os import path, utime, getcwd
 from downloader import add_file_from_memory
 from gzip import compress
 
@@ -38,7 +38,7 @@ try:
 except:
 	pass
 
-DOWNLOAD_DIR="./data/content/"
+DOWNLOAD_DIR=path.join(getcwd(),"data","content")
 
 def download(url, data):
 	print("downloading", data["video_id"])
@@ -54,11 +54,11 @@ def download(url, data):
 
 	mtime = time()
 	try:
-		mtime = path.getmtime(DOWNLOAD_DIR+"/"+data["author_id"]+".tar")
+		mtime = path.getmtime(path.join(DOWNLOAD_DIR,data["author_id"]+".tar"))
 	except:
 		pass
 
-	with tarfile.open(name=DOWNLOAD_DIR+"/"+data["author_id"]+".tar", mode="a") as archive:
+	with tarfile.open(name=path.join(DOWNLOAD_DIR,data["author_id"]+".tar"), mode="a") as archive:
 		add_file_from_memory(
 			archive, data["video_id"]+".json.gz",
 			compress(dumps(data).encode(), compresslevel=9)
@@ -68,7 +68,7 @@ def download(url, data):
 			response.content
 		)
 
-	utime(DOWNLOAD_DIR+"/"+data["author_id"]+".tar", times=(mtime,mtime))
+	utime(path.join(DOWNLOAD_DIR,data["author_id"]+".tar"), times=(mtime,mtime))
 	add_presence(data["video_id"], data["author_id"])
 	print("done.")
 
@@ -124,7 +124,6 @@ while True:
 				})
 			else:
 				print("already downloaded, skip")
-
 			i = 0
 			olds.append(elem.id)
 			sleep(0.1)

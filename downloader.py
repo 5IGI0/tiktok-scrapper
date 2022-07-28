@@ -1,6 +1,6 @@
 import requests
 import tarfile
-from os import makedirs, utime, path
+from os import makedirs, utime, path, getcwd
 import io
 from gzip import compress
 import json
@@ -9,7 +9,7 @@ from time import time
 from tiktok import get_meta_from_video_id, get_meta_from_profile
 from table_manager import is_present, add_presence
 
-DOWNLOAD_DIR="./data/content/"
+DOWNLOAD_DIR=path.join(getcwd(),"data","content")
 makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 def add_file_from_memory(archive, fname, buffer):
@@ -30,7 +30,7 @@ def download_tiktok(video_id):
 
 	mtime = time()
 	try:
-		mtime = path.getmtime(DOWNLOAD_DIR+"/"+data["video"]["authorId"]+".tar")
+		mtime = path.getmtime(path.join(DOWNLOAD_DIR,data["video"]["authorId"]+".tar"))
 	except:
 		pass
 
@@ -54,7 +54,7 @@ def download_tiktoks_profile(user_id):
 
 	numeric_user_id = list(data["users"].values())[0]["id"]
 
-	with tarfile.open(name=DOWNLOAD_DIR+"/"+list(data["users"].values())[0]["id"]+".tar", mode="a") as archive:
+	with tarfile.open(name=path.join(DOWNLOAD_DIR,list(data["users"].values())[0]["id"]+".tar"), mode="a") as archive:
 		for video in data["videos"].values():
 			json_data = json.dumps({
 				"video": video,
@@ -76,7 +76,7 @@ def download_tiktoks_profile(user_id):
 			add_presence(video["id"], list(data["users"].values())[0]["id"])
 
 	print("done.")
-	utime(DOWNLOAD_DIR+"/"+numeric_user_id+".tar", times=(time(),time()))
+	utime(path.join(DOWNLOAD_DIR,numeric_user_id+".tar"), times=(time(),time()))
 	
 
 
